@@ -49,7 +49,7 @@ buildscript {
         mavenCentral()
         google()
         gradlePluginPortal()
-        maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev")
+        maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap")
     }
 }
 
@@ -93,7 +93,7 @@ apply(from = "gradle/compatibility.gradle")
 plugins {
     id("org.jetbrains.dokka") version "1.7.20" apply false
     id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.12.1"
-    id("kotlinx-atomicfu") version "0.19.0" apply false
+    id("kotlinx-atomicfu") version "0.20.2-wasm0" apply false
     id("com.osacky.doctor") version "0.8.1"
 }
 
@@ -108,7 +108,8 @@ allprojects {
         mavenLocal()
         mavenCentral()
         maven(url = "https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
-        maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev")
+        maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap")
+        maven("https://maven.pkg.jetbrains.space/kotlin/p/wasm/experimental")
     }
 
     val nonDefaultProjectStructure: List<String> by rootProject.extra
@@ -244,4 +245,36 @@ val jsLegacyTest by tasks.creating {
 }
 
 val cleanJsLegacyTest by tasks.creating {
+}
+
+allprojects.forEach {
+    it.tasks.withType<org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile>().configureEach {
+        kotlinOptions.freeCompilerArgs += listOf(
+            "-Xskip-prerelease-check",
+        )
+    }
+}
+
+with(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.apply(rootProject)) {
+    //canary nodejs that supports wasm GC M6
+    nodeVersion = "20.0.0-v8-canary2023041819be670741"
+    nodeDownloadBaseUrl = "https://nodejs.org/download/v8-canary"
+}
+
+
+// Node with canary V8 version is not parsed correctly by NPM, producing errors like
+//
+//          error typescript@4.7.4: The engine "node" is incompatible with this module.
+//                                  Expected version ">=4.2.0". Got "20.0.0-v8-canary***"
+//
+allprojects.forEach {
+    it.tasks.withType<org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask>().configureEach {
+        args.add("--ignore-engines")
+    }
+
+    it.tasks.whenTaskAdded {
+        if (name == "compileJsWasmMainKotlinMetadata") {
+            enabled = false
+        }
+    }
 }
