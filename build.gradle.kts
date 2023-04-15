@@ -272,6 +272,11 @@ allprojects.forEach {
         args.add("--ignore-engines")
     }
 
+    val jvmApiBuild = it.tasks.findByName("jvmApiBuild")
+    if (jvmApiBuild != null) {
+        jvmApiBuild.enabled = false
+    }
+
     it.tasks.whenTaskAdded {
         if (name == "compileJsWasmMainKotlinMetadata") {
             enabled = false
