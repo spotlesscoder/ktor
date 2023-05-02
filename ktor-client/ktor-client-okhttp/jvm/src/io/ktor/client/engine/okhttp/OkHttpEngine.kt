@@ -57,6 +57,8 @@ public class OkHttpEngine(override val config: OkHttpConfig) : HttpClientEngineB
         GlobalScope.launch(super.coroutineContext, start = CoroutineStart.ATOMIC) {
             try {
                 requestsJob[Job]!!.join()
+            } catch (cause: Throwable) {
+                // no op
             } finally {
                 clientCache.forEach { (_, client) ->
                     client.connectionPool.evictAll()
@@ -208,10 +210,12 @@ internal fun OutgoingContent.convertToOkHttpBody(callContext: CoroutineContext):
     is OutgoingContent.ByteArrayContent -> bytes().let {
         it.toRequestBody(null, 0, it.size)
     }
+
     is OutgoingContent.ReadChannelContent -> StreamRequestBody(contentLength) { readFrom() }
     is OutgoingContent.WriteChannelContent -> {
         StreamRequestBody(contentLength) { GlobalScope.writer(callContext) { writeTo(channel) }.channel }
     }
+
     is OutgoingContent.NoContent -> ByteArray(0).toRequestBody(null, 0, 0)
     else -> throw UnsupportedContentTypeException(this)
 }

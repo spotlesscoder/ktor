@@ -64,8 +64,11 @@ internal class CIOEngine(
 
         @OptIn(ExperimentalCoroutinesApi::class)
         GlobalScope.launch(parentContext, start = CoroutineStart.ATOMIC) {
+            @Suppress("BlockingMethodInNonBlockingContext")
             try {
                 requestJob.join()
+            } catch (cause: Throwable) {
+                // no op
             } finally {
                 selector.close()
                 selector.coroutineContext[Job]!!.join()
